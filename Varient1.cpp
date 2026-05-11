@@ -1,3 +1,4 @@
+//Varient1.cpp
 #include "Varient1.h"
 typedef enum _SET_WORKERFACTORYINFOCLASS
 {

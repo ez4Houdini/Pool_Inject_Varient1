@@ -1,3 +1,4 @@
+//Varient1.h
 #pragma once
 #include "pch.h"
 #include "HijackHandle.h"

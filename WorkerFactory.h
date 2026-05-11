@@ -34,7 +34,7 @@ typedef struct _WORKER_FACTORY_BASIC_INFORMATION
 
     PVOID StartRoutine;               // worker 启动函数入口（线程执行起点）
 
-    // 指向线程池池结构（FULL_TP_POOL）
+    // 🔥 关键字段：指向线程池池结构（FULL_TP_POOL）
     // 在 PoolParty / TP_WORK hijack / worker factory 利用中非常关键
     PVOID StartParameter;
 

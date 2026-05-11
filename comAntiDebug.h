@@ -1,3 +1,4 @@
+//comAntiDebug.h
 #pragma once
 #include"pch.h"
 #pragma comment(lib, "wbemuuid.lib")

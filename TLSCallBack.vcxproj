@@ -125,6 +125,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BYOVD.cpp" />
     <ClCompile Include="comAntiDebug.cpp" />
     <ClCompile Include="HijackHandle.cpp" />
     <ClCompile Include="TLSCallBack.cpp" />
@@ -132,6 +133,7 @@
     <ClCompile Include="WorkerFactory.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BYOVD.h" />
     <ClInclude Include="comAntiDebug.h" />
     <ClInclude Include="HijackHandle.h" />
     <ClInclude Include="pch.h" />
